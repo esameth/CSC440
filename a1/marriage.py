@@ -1,20 +1,13 @@
-"""
-Jackson Xie and Elysha Sameth
-CSC440: Assignment 1 Perfect Marriage in King Arthur's Court
-06 February 2019
-"""
-
 import sys
+from itertools import islice
+import numpy as np
 
 """
 All of the exception handling for the file format.
 It will check that there are enough arguments, a valid input file, that the first line is an int,
 there are enough lines, and that there are enough names in each line.
-
 It will exit(1) if any of these conditions are not true
 """
-
-
 def file_handling():
     # Check to see if there are enough arguments provided
     if len(sys.argv) != 2:
@@ -49,8 +42,7 @@ def file_handling():
         exit(1)
 
     input_file.close()
-    return
-
+    return num_people
 
 """
 Reads from a file input and creates the knights and ladies dictionaries.
@@ -59,152 +51,89 @@ the same name as other ladies, but a knight and a lady can have the same name -
 handled by checking to see if the name is in the dictionary already and
 writing to stderr.
 
+@param num_people - to know when to separate the lists
 @return knights and ladies dictionaries 
 """
-
-
-def initiate():
+def initiate(num_people):
     # Create knights and ladies dictionaries that will hold names and preferences
     knights = {}
     ladies = {}
 
-    # Read the file and strip the first line
-    input_file = open(sys.argv[1], "r")
-    line = input_file.readline()
-    num_people = int(line.strip())
-
-    # Will be used to count how many lines in we are so we can separate knights and ladies evenly
-    count = 0
-    # Read each line and separate them into knights and ladies
-    for line in input_file:
-        # Create knight dictionary
-        if count < num_people:
+    with open(sys.argv[1], 'r') as input_file:
+        # Will be used to count how many lines in we are so we can separate knights and ladies evenly
+        count = 0
+        # Read each line and separate them into knights and ladies
+        # Skip the first line because it is the number of people
+        for line in islice(input_file, 1, None):
             items = line.split()
             key, values = items[0], items[1:]
 
-            # Check to see if the key already exists - knights can't have the same name
-            if key in knights:
-                sys.stderr.write("Knights cannot have the same name")
-                exit(0)
+            # Create knight dictionary
+            if count < num_people:
+                # Check to see if the key already exists - knights can't have the same name
+                if key in knights:
+                    sys.stderr.write("Knights cannot have the same name")
+                    exit(0)
+                # Put the key and its values in the dictionary
+                knights[key] = values
 
-            # Put the key and its values in the dictionary
-            knights[key] = values
-
-        # Create ladies dictionary
-        else:
-            items = line.split()
-            key, values = items[0], items[1:]
-            if key in ladies:
-                sys.stderr.write("Ladies cannot have the same name\n")
-                exit(0)
-
-            ladies[key] = values
-
-        count += 1
-
-    input_file.close()
-
+            # Create ladies dictionary
+            else:
+                if key in ladies:
+                    sys.stderr.write("Ladies cannot have the same name\n")
+                    exit(0)
+                ladies[key] = values
+            count += 1
     # Return the dictionaries
     return knights, ladies
 
-
 """
 Checks to see if the lady prefers another knight over her partner.
-
 @param  knights, ladies - dictionaries
         lady, knight, partner -the lady and knight we are currently looking at 
                                 and the knight she's currently engaged to
 @return True if she does; False if she prefers her current partner more
 """
-
-
 def l_pref(ladies, lady, knight, partner):
-    partner_list = list(ladies.get(lady, "none"))
+    partner_list = ladies[lady]
     partner_index = partner_list.index(partner)
     knight_index = partner_list.index(knight)
-
     if partner_index < knight_index:
         return False
 
     return True
 
-
 """
 Makes sure the marriage is stable
-
 @param  knights, ladies - dictionaries
 @return a list of the knight the lady says yes to
 """
-
-
 def stable(knights, ladies):
     # Count the number of couples
     num_taken = 0
-
     # List to hold who the lady is engaged to
-    l_partner = []
-
+    l_partner = ["free"] * len(knights)
     # List to hold if knight is free
-    k_free = []
+    k_free = ["free"] * len(knights)
 
-    # Fill the lists with "free" initially
-    for i in range(len(knights)):
-        l_partner.append("free")
-        k_free.append("free")
+    knightList = list(knights)
+    ladiesList = list(ladies)
 
-    """ 
-        Invariant: At iteration i, there are knights that are not paired with a lady
-        Initialization: The list of knights are all free (not paired)
-        Maintenance: Given that the num_taken does not equal len(knights) the function will run
-                     in attempt to pair the knight with a lady.
-        Termination: At the last iteration, the num_taken == len(knights)
-    """
     # While there are free men, continue the algorithm
     while num_taken != len(knights):
-        i = 0
-
-        """ 
-            Invariant: At iteration i, i < len(knights)
-            Initialization: i = 0, len(knights) > 0
-            Maintenance: Given that the k_free list has indices that aren't "free" the function will continue going
-                         until it finds an index that isn't "free" and breaks from the loop
-            Termination: At the last iteration, all the indices are "free". When the conditional finds an index
-                         that is not free, it will terminate the loop.
-        """
         # Get the first knight who is free
-        while i < len(knights):
-            if k_free[i] == "free":
-                break
-            else:
-                i += 1
-        """ 
-            Invariant: The list of knights will always be the same size as the k_free
-            Initialization: There is a list of knights
-            Maintenance: Given that the len(knights) > i
-            Termination: When the conditional finds the knight in the index i it will break from the loop
-        """
+        i = k_free.index("free")
         # Get the name of the knight
-        for key in knights:
-            if list(knights).index(key) == i:
-                knight = key
-                break
+        knight = knightList[i]
 
-        """ 
-            Invariant: At iteration j, the knights and the k_free previously will no be free.
-                       The following ones will be free. 
-            Initialization: The knights k_free array has a free index
-            Maintenance: Given that k_free[i] is free it will get the index of the lady
-                         and check if the lady is free and propose to her. 
-            Termination: When there are no longer any knights and k_free[i] is no longer free 
-        """
         # Go through all of the free knight's preferences
         j = 0
         while j != len(knights) and k_free[i] == "free":
             # Name of the lady we are looking at in his preference list
-            lady = knights.get(knight, "none")[j]
+            lady = knights[knight][j]
 
             # Get index of lady
-            lady_index = list(ladies).index(lady)
+            lady_index = ladiesList.index(lady)
 
             # If the lady is free then the knight will propose to her
             if l_partner[lady_index] == "free":
@@ -217,7 +146,7 @@ def stable(knights, ladies):
                 # Get name of the knight engaged to the lady
                 partner = l_partner[lady_index]
                 # Get partner index in case we have to set him to "free"
-                partner_index = list(knights.keys()).index(partner)
+                partner_index = knightList.index(partner)
 
                 # If the lady does prefer the knight over her current fiance, break them up
                 if l_pref(ladies, lady, knight, partner):
@@ -228,27 +157,18 @@ def stable(knights, ladies):
                     k_free[partner_index] = "free"
 
             j += 1
-
     return l_partner
 
-
 def main():
-    file_handling()
-    knights, ladies = initiate()
+    num_people = file_handling()
+    knights, ladies = initiate(num_people)
     partners = stable(knights, ladies)
 
-    for key in knights:
+    for knight in knights:
         # Find position in partners list to get lady
-        lady = partners.index(key)
-
-        # Name of lady
-        for name in ladies:
-            if list(ladies).index(name) == lady:
-                lady = name
-                break
-
-        sys.stdout.write(key + " " + lady + "\n")
-
+        lady = partners.index(knight)
+        lady = list(ladies)[lady]
+        sys.stdout.write(knight + " " + lady + "\n")
 
 if __name__ == "__main__":
     main()
