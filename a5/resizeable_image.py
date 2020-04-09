@@ -81,21 +81,14 @@ class ResizeableImage(imagematrix.ImageMatrix):
             # This calls DFS, a recursive function, to find the best paths
             # It returns a ([path], energy) which is stored into one final list
             for i in range(self.width):
-                allPaths.append(tuple(self.DFS(energy_map, i, self.height - 1)))
+                path, energy = self.DFS(energy_map, i, self.height - 1)
+                allPaths[energy] = path
 
-            # Set the minimum energy to the first path
-            minE = allPaths[0][1]
-            col = 0
-
-            # Loop through and check to see if the energies of the other paths are smaller
-            for i in range(self.width):
-                if allPaths[i][1] < minE:
-                    minE = allPaths[i][1]
-                    # Holds the column that has the minimum energy
-                    col = i
+            # Get the minimum energy 
+            min_energy = min(allPaths.keys())
 
             # Get just the path
-            finalPath = allPaths[col][0]
+            finalPath = allPaths[min_energy]
 
         # Memoization
         else:
