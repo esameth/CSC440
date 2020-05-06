@@ -6,48 +6,32 @@ class ResizeableImage(imagematrix.ImageMatrix):
     Calculates and returns the best path from each column in the last row and their energies
     """
     def DFS(self, energy_map, col, row):
+        path_energy = []
+        
         # Base case -if we've reached row 0
         if row == 0:
             return [(col, row)], self.energy(col, row)
 
+        # Get one above it
+        path_energy.append(self.DFS(energy_map, col, row - 1))
+
          # We are in the first column
         if col == 0:
-            # Get the upper right and the one above
-            path1, energy1 = self.DFS(energy_map, col + 1, row - 1)
-            path2, energy2 = self.DFS(energy_map, col, row - 1)
-
-            # Check which one has a lower energy
-            energies = min(energy1, energy2)
-            path = path1
-            if energies == energy2:
-                path = path2
+            # Get the upper right
+            path_energy.append(self.DFS(energy_map, col + 1, row - 1))
 
         # We are in the last column
         elif col == self.width - 1:
-            # Get the one above and the one on the upper left
-            path1, energy1 = self.DFS(energy_map, col, row - 1)
-            path2, energy2 = self.DFS(energy_map, col - 1, row - 1)
-
-            # Check which one has a lower energy
-            energies = min(energy1, energy2)
-            path = path1
-            if energies == energy2:
-                path = path2
+            # Get the one on the upper left
+            path_energy.append(self.DFS(energy_map, col - 1, row - 1))
 
         else:
-            # Get the one to the upper left, the one above, and the one to the upper right
-            path1, energy1 = self.DFS(energy_map, col - 1, row - 1)
-            path2, energy2 = self.DFS(energy_map, col, row - 1)
-            path3, energy3 = self.DFS(energy_map, col + 1, row - 1)
+            # Get the one to the upper left and the one to the upper right
+            path_energy.append(self.DFS(energy_map, col - 1, row - 1))
+            path_energy.append(self.DFS(energy_map, col + 1, row - 1))
 
-            # Check which one has a lower energy
-            energies = min(energy1, energy2, energy3)
-            path = path1
-            if energies == energy2:
-                path = path2
-            elif energies == energy3:
-                path = path3
-
+        # Check which one has a lower energy
+        path, energies = min(path_energy, key = lambda t: t[1])
         # Add to the total energy
         energies += energy_map[col][row]
         # Add to the path
@@ -65,12 +49,12 @@ class ResizeableImage(imagematrix.ImageMatrix):
             depth-first traversal (Recursively) -not complete so need to handle special case if at an edge
             return a collection of (path, energy) and find the best one
         """
-        if dp == False:
+        if not dp:
             # Create an energy map that's filled with all 0s -it has the same dimensions as the image
             energy_map = np.zeros(shape=(self.height, self.width), dtype=np.int32)
 
             # Will hold the paths from DFS
-            allPaths = []
+            allPaths = {}
 
             # Fill the energy map with their values
             for j in range(self.height):
@@ -83,12 +67,9 @@ class ResizeableImage(imagematrix.ImageMatrix):
             for i in range(self.width):
                 path, energy = self.DFS(energy_map, i, self.height - 1)
                 allPaths[energy] = path
-
-            # Get the minimum energy 
-            min_energy = min(allPaths.keys())
-
-            # Get just the path
-            finalPath = allPaths[min_energy]
+                
+            # Get path of the minimum energy
+            finalPath = allPaths[min(allPaths.keys())]
 
         # Memoization
         else:
@@ -130,11 +111,7 @@ class ResizeableImage(imagematrix.ImageMatrix):
 
             # Start looking at the lower left corner - we will be checking each value in this row to find the min
             # This can be done since the last row contains the added final energies of each path
-            minimum = energy_map[0, self.height - 1]
-            minPixel = (0, self.height - 1)
-            for i in range(1, self.width):
-                if energy_map[i, self.height - 1] < minimum:
-                    minPixel = (i, self.height - 1)
+            minPixel = min((k for k in energy_map if k[1] == self.height - 1), key=energy_map.get)
 
             # Now that we have which column has the least energy, we have to find its path by traversing the path dict
             finalPath = [minPixel]
